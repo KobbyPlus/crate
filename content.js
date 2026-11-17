@@ -366,6 +366,7 @@
         const coverOf = g.cover_of.length ? [label('This song is a cover of'), list(g.cover_of)] : null;
         if (!c || c.status === 'loading') return h('div', {}, coverOf, h('div', { class: 'loading small' }, h('div', { class: 'spin' }), 'Finding popular covers…'));
         const fallback = (c.fallback || []).length ? [label('Covers listed on Genius'), list(c.fallback)] : null;
+        if (c.status === 'off') return h('div', {}, coverOf, fallback || empty('No covers listed for this song yet.', song));
         if (c.status === 'nokey') {
           return h('div', {}, coverOf,
             h('div', { class: 'notice' }, 'Add a free YouTube API key in settings to see the most-viewed covers.',
@@ -424,6 +425,7 @@
   function statsStrip() {
     const st = S.extra && S.extra.stats;
     if (!st) return h('div', { class: 'stats' }, ['BPM', 'KEY', 'CAMELOT', 'TIME'].map((k) => h('div', { class: 'stat skeleton' }, h('span', { class: 'stat-k' }, k), h('span', { class: 'stat-v' }, '·'))));
+    if (st.status === 'off') return null;
     if (st.status === 'nokey') {
       return h('div', { class: 'notice slim' }, 'Add a free GetSongBPM key to see BPM and key.',
         h('button', { class: 'link', onclick: () => send({ type: 'openOptions' }) }, 'Settings'));
@@ -445,6 +447,9 @@
     BAD_TOKEN: 'Your Genius token was rejected. Paste a fresh one in settings.',
     RATE_LIMIT: 'Genius is rate limiting requests. Give it a minute.',
     EXTENSION_RELOADED: 'Crate was updated. Refresh this page.',
+    SERVER_DOWN: 'Crate’s server can’t be reached right now. Try again in a minute.',
+    SERVER_KEY_PROBLEM: 'Crate’s server is having trouble with Genius. Try again later.',
+    SERVICE_DISABLED: 'Crate’s server isn’t fully set up yet.',
   };
 
   function header() {
@@ -477,7 +482,7 @@
             h('button', { class: 'pill' + (saved ? ' on' : ''), onclick: () => toggleSave(song) }, saved ? '✓ In crate' : '+ Crate'),
             h('button', { class: 'pill', onclick: makeCard }, '↗ Share'),
             !S.stack.length ? h('button', { class: 'pill ghost', onclick: () => { S.view = 'pick'; render(); } }, 'Wrong song?') : null))),
-      statsStrip(),
+      statsStrip() || '',
       h('nav', { class: 'tabs' }, TABS.map(([key, name]) => {
         const n = tabCount(song, key);
         return h('button', {

@@ -17,23 +17,21 @@ BPM and key data provided by [GetSongBPM](https://getsongbpm.com).
 
 1. Unzip and keep the `crate` folder somewhere permanent.
 2. Go to `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, pick `crate`.
-3. The settings page opens. Add your keys (instructions are on the page):
-   - **Genius** (required): https://genius.com/api-clients
-   - **GetSongBPM** (optional, BPM and key): https://getsongbpm.com/api
-   - **YouTube Data API v3** (optional, covers): Google Cloud console
-4. Open a music video and hit the **Crate** button, or press `Alt+Shift+C`.
+3. Open a music video and hit the **Crate** button, or press `Alt+Shift+C`.
+
+No API keys needed. Crate talks to its own small server (`server/`), which holds the keys and caches results for everyone. Developers can still add their own keys under **Settings → Use your own API keys**.
 
 Updating from an older version: replace the folder, then hit the reload arrow on Crate's card in `chrome://extensions`.
 
 ## Data sources
 
-| Source | What it gives | Key |
+| Source | What it gives | Through |
 |---|---|---|
-| Genius | Samples, interpolations, covers list, meanings, base credits, artist pages | Required |
-| MusicBrainz | Engineers, mixers, mastering, instruments, studios, songwriters | None |
-| GetSongBPM | BPM, key, time signature (backlink required, shown in the footer) | Free |
-| YouTube Data API | Popular covers with view counts | Free |
-| Wikipedia | Background summary | None |
+| Genius | Samples, interpolations, covers list, meanings, base credits, artist pages | Crate server |
+| MusicBrainz | Engineers, mixers, mastering, instruments, studios, songwriters | Direct, no key |
+| GetSongBPM | BPM, key, time signature (backlink shown in the footer) | Crate server |
+| YouTube Data API | Popular covers with view counts | Crate server |
+| Wikipedia | Background summary | Direct, no key |
 
 Notes:
 - YouTube's free quota is 10,000 units a day and one cover search uses 100, so covers load only when you open the Covers tab, and results are cached for a week.
@@ -45,6 +43,8 @@ Notes:
 | Path | Job |
 |---|---|
 | `background.js` | Service worker. Routes messages and combines the sources |
+| `lib/config.js` | The Crate server URL |
+| `server/` | The key-holding Cloudflare Worker |
 | `lib/genius.js`, `lib/musicbrainz.js`, `lib/bpm.js`, `lib/youtube.js`, `lib/wiki.js` | One file per data source |
 | `lib/credits.js` | Merges and orders credits from Genius and MusicBrainz |
 | `content.js` | Detects what's playing and draws the panel (Shadow DOM, text-only rendering, no innerHTML) |
@@ -53,9 +53,13 @@ Notes:
 | `panel.css` | Panel design |
 | `fonts/` | Inter (SIL Open Font License) |
 
+## Server
+
+See [server/README.md](server/README.md) to deploy the key-holding server on Cloudflare's free tier.
+
 ## Before publishing to the Chrome Web Store
 
-- Move the API keys behind a small server (a Cloudflare Worker works) so users don't need their own.
+- Lock the server to Crate's store ID (`EXTENSION_IDS` in `server/wrangler.toml`).
 - Add the GetSongBPM backlink to the store listing, as their terms require.
 - Write a privacy policy (Crate collects nothing, which makes it short).
 

@@ -40,6 +40,12 @@
     #save { background: var(--red); padding: 12px 26px; box-shadow: 0 10px 26px rgba(187,24,46,.35); }
     #save:hover { background: #D42640; }
     .note { margin-top: 36px; font-size: 13px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 18px; }
+    details.adv { margin: 8px 0 16px; }
+    details.adv > summary { cursor: pointer; color: var(--mute); font-weight: 600; padding: 10px 2px; list-style: none; }
+    details.adv > summary::before { content: "▸ "; }
+    details.adv[open] > summary::before { content: "▾ "; }
+    .dotok { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #5FD38A; margin-right: 8px; }
+    .dotbad { background: #FF6B7D; }
     .kbd { font: 12px ui-monospace, monospace; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; }
   </style>
 </head>
@@ -49,7 +55,29 @@
     <p class="tag">Dig into any song. Open with the Crate button or <span class="kbd">Alt+Shift+C</span>.</p>
 
     <section class="card">
-      <h2>GENIUS <span class="req">Required</span></h2>
+      <h2>CRATE SERVER</h2>
+      <p class="what" id="server">Checking…</p>
+    </section>
+
+    <section class="card">
+      <h2>PREFERENCES</h2>
+      <label class="what" for="coverMin" style="display:flex;align-items:center;gap:10px;margin:8px 0 0">Only show covers with at least
+        <select id="coverMin">
+          <option value="50000">50K views</option>
+          <option value="100000">100K views</option>
+          <option value="250000">250K views</option>
+          <option value="500000">500K views</option>
+          <option value="1000000">1M views</option>
+        </select>
+      </label>
+    </section>
+
+    <details class="adv" id="adv">
+      <summary>Use your own API keys (optional)</summary>
+      <p class="what">Not needed when the Crate server is connected. Your own keys take priority if you add them, which is handy for development or if the server is down.</p>
+
+    <section class="card">
+      <h2>GENIUS <span class="req opt">Optional</span></h2>
       <p class="what">Samples, interpolations, meanings, base credits.</p>
       <ol>
         <li>Go to <a href="https://genius.com/api-clients" target="_blank" rel="noopener">genius.com/api-clients</a> and sign in.</li>
@@ -81,20 +109,12 @@
       </ol>
       <div class="row"><input id="youtubeKey" type="password" autocomplete="off" spellcheck="false" placeholder="YouTube API key" /><button data-test="youtube">Test</button></div>
       <div class="status" data-status="youtube"></div>
-      <label class="what" for="coverMin" style="display:flex;align-items:center;gap:10px;margin-top:6px">Only show covers with at least
-        <select id="coverMin">
-          <option value="50000">50K views</option>
-          <option value="100000">100K views</option>
-          <option value="250000">250K views</option>
-          <option value="500000">500K views</option>
-          <option value="1000000">1M views</option>
-        </select>
-      </label>
     </section>
+    </details>
 
     <div class="save"><button id="save">Save</button><span class="status" id="saved"></span></div>
 
-    <p class="note">MusicBrainz (deep credits) and Wikipedia (background) need no keys. Your keys stay in Chrome sync storage and are only sent to the service they belong to. Crate has no server and collects nothing.</p>
+    <p class="note">MusicBrainz and Wikipedia are free and need no keys. If you add your own keys, they stay in Chrome sync storage and are only sent to the service they belong to. Crate collects no personal data.</p>
   </main>
   <script src="options.js"></script>
 </body>

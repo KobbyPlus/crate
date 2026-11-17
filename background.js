@@ -1,5 +1,6 @@
 // Crate background service worker. Every API call happens here so keys never touch the YouTube page.
-import { getSettings, cacheSet } from './lib/util.js';
+import { getSettings, cacheSet, serverGet } from './lib/util.js';
+import { hasServer, SERVER_URL } from './lib/config.js';
 import { findSong, getSong, searchSongs, toCandidate, getArtist, findArtistId, matchKey, genius } from './lib/genius.js';
 import { getMbCredits } from './lib/musicbrainz.js';
 import { getBpm, testBpm } from './lib/bpm.js';
@@ -19,12 +20,14 @@ async function enrich(id) {
   const song = await getSong(id);
   const settings = await getSettings();
   const [bpm, mb, wiki] = await Promise.all([
-    settings.bpmKey ? settle(getBpm(song.artist, song.title, settings.bpmKey)) : Promise.resolve({ ok: false, error: 'NO_KEY' }),
+    settings.bpmKey || hasServer() ? settle(getBpm(song.artist, song.title, settings.bpmKey)) : Promise.resolve({ ok: false, error: 'NO_KEY' }),
     settle(getMbCredits(song.artist, song.title)),
     settle(getWiki(song.artist, song.title)),
   ]);
   return {
-    stats: bpm.ok ? (bpm.data ? { status: 'ok', ...bpm.data } : { status: 'none' }) : { status: bpm.error === 'NO_KEY' ? 'nokey' : 'error', error: bpm.error },
+    stats: bpm.ok
+      ? bpm.data ? { status: 'ok', ...bpm.data } : { status: 'none' }
+      : { status: bpm.error === 'NO_KEY' ? 'nokey' : bpm.error === 'SERVICE_DISABLED' ? 'off' : 'error', error: bpm.error },
     credits: mergeCredits(song.credits, mb.ok && mb.data ? mb.data.roles : []),
     mbUrl: mb.ok && mb.data ? mb.data.url : '',
     wiki: wiki.ok ? wiki.data : null,
@@ -57,9 +60,14 @@ async function handle(msg) {
     case 'covers': {
       const song = await getSong(msg.id);
       const s = await getSettings();
-      if (!s.youtubeKey) return { status: 'nokey', fallback: song.groups.covered_by };
-      const list = await getCovers(song.artist, song.title, s.youtubeKey, s.coverMin);
-      return { status: 'ok', list, min: s.coverMin, fallback: song.groups.covered_by };
+      if (!s.youtubeKey && !hasServer()) return { status: 'nokey', fallback: song.groups.covered_by };
+      try {
+        const list = await getCovers(song.artist, song.title, s.youtubeKey, s.coverMin);
+        return { status: 'ok', list, min: s.coverMin, fallback: song.groups.covered_by };
+      } catch (e) {
+        if (e.message === 'SERVICE_DISABLED') return { status: 'off', fallback: song.groups.covered_by };
+        throw e;
+      }
     }
     case 'artist':
       return { artist: await getArtist(msg.id) };
@@ -86,6 +94,14 @@ async function handle(msg) {
       }
       return { ok: true };
     }
+    case 'serverStatus': {
+      if (!hasServer()) return { configured: false };
+      try {
+        return { configured: true, url: SERVER_URL, ...(await serverGet('/health')) };
+      } catch (e) {
+        return { configured: true, url: SERVER_URL, ok: false, error: e.message };
+      }
+    }
     case 'openOptions':
       chrome.runtime.openOptionsPage();
       return { ok: true };
@@ -108,6 +124,6 @@ chrome.action.onClicked.addListener((tab) => {
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   const s = await getSettings();
-  if (reason === 'install' && !s.geniusToken) chrome.runtime.openOptionsPage();
+  if (reason === 'install' && !s.geniusToken && !hasServer()) chrome.runtime.openOptionsPage();
 });
 

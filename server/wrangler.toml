@@ -1,0 +1,23 @@
+# Crate API server (Cloudflare Worker). Holds the API keys so users never need their own.
+name = "crate-api"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+[vars]
+# Optional: lock the server to your extension. Comma-separated Chrome extension IDs.
+# Leave empty to allow any Chrome extension (websites are always blocked).
+EXTENSION_IDS = ""
+
+# Per-user rate limit: 120 requests per minute per IP.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 120
+  period = 60
+
+# Secrets (never put these in this file). Set them once with:
+#   npx wrangler secret put GENIUS_TOKEN
+#   npx wrangler secret put BPM_KEY
+#   npx wrangler secret put YOUTUBE_KEY

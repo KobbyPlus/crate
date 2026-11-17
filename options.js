@@ -42,3 +42,23 @@ document.querySelectorAll('[data-test]').forEach((btn) => {
     else say(out, MESSAGES[res && res.error] || `Couldn’t connect (${res ? res.error : 'no response'}).`, false);
   });
 });
+
+// Server status
+(async () => {
+  const el = document.getElementById('server');
+  const st = await chrome.runtime.sendMessage({ type: 'serverStatus' });
+  el.textContent = '';
+  const dot = document.createElement('span');
+  dot.className = 'dotok';
+  if (!st || !st.configured) {
+    dot.className = 'dotok dotbad';
+    el.append(dot, 'No server set up in this build. Add your own keys below to use Crate.');
+    document.getElementById('adv').open = true;
+  } else if (!st.ok) {
+    dot.className = 'dotok dotbad';
+    el.append(dot, `Can’t reach the Crate server right now (${st.error}). Your own keys below will be used if you add them.`);
+  } else {
+    const off = ['genius', 'bpm', 'youtube'].filter((k) => !st[k]);
+    el.append(dot, 'Connected. No keys needed.' + (off.length ? ` (Not enabled on the server yet: ${off.join(', ')}.)` : ''));
+  }
+})();
