@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Crate settings</title>
+  <style>
+    @font-face { font-family: "CrateSans"; src: url("fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+    :root { --ink: #0C082B; --purple: #3C1361; --red: #BB182E; --text: #F2ECFF; --mute: #A99BC9; --line: rgba(242,236,255,.12); }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--text); font: 15px/1.55 "CrateSans", system-ui, sans-serif;
+      background: radial-gradient(90% 50% at 80% 0%, rgba(60,19,97,.7), transparent 70%), var(--ink);
+      min-height: 100vh;
+    }
+    main { max-width: 620px; margin: 0 auto; padding: 56px 20px 80px; }
+    header { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
+    header img { width: 56px; height: 56px; border-radius: 16px; box-shadow: 0 10px 30px rgba(187,24,46,.25); }
+    h1 { font: 800 32px "CrateSans", system-ui; letter-spacing: -.03em; margin: 0; }
+    .tag { color: var(--mute); margin: 0 0 36px; }
+    .card { background: rgba(60,19,97,.28); border: 1px solid var(--line); border-radius: 18px; padding: 20px 20px 18px; margin-bottom: 16px; }
+    .card h2 { font: 700 13px "CrateSans"; letter-spacing: .12em; margin: 0 0 4px; display: flex; gap: 10px; align-items: center; }
+    .req { font: 600 11px "CrateSans"; letter-spacing: 0; padding: 2px 9px; border-radius: 999px; background: var(--red); }
+    .opt { background: rgba(242,236,255,.1); color: var(--mute); }
+    .what { color: var(--mute); font-size: 13.5px; margin: 8px 0 12px; }
+    ol { margin: 0 0 14px; padding-left: 20px; color: #D9D0EE; font-size: 13.5px; }
+    li { margin-bottom: 4px; }
+    a { color: #E2475D; }
+    .row { display: flex; gap: 8px; }
+    input, select {
+      flex: 1; min-width: 0; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--ink); color: inherit; font: 13.5px ui-monospace, monospace;
+    }
+    select { font-family: "CrateSans"; flex: none; }
+    input:focus, select:focus { outline: none; border-color: var(--red); }
+    button { padding: 10px 18px; border-radius: 999px; border: 0; font: 700 13px "CrateSans"; cursor: pointer; background: var(--purple); color: var(--text); }
+    button:hover { background: #4E1C7D; }
+    .status { min-height: 1.4em; margin-top: 8px; font-size: 13px; }
+    .ok { color: #8FE3A8; } .bad { color: #FF8B98; }
+    .save { margin-top: 8px; display: flex; align-items: center; gap: 14px; }
+    #save { background: var(--red); padding: 12px 26px; box-shadow: 0 10px 26px rgba(187,24,46,.35); }
+    #save:hover { background: #D42640; }
+    .note { margin-top: 36px; font-size: 13px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 18px; }
+    .kbd { font: 12px ui-monospace, monospace; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header><img src="icons/logo.svg" alt="" /><h1>Crate</h1></header>
+    <p class="tag">Dig into any song. Open with the Crate button or <span class="kbd">Alt+Shift+C</span>.</p>
+
+    <section class="card">
+      <h2>GENIUS <span class="req">Required</span></h2>
+      <p class="what">Samples, interpolations, meanings, base credits.</p>
+      <ol>
+        <li>Go to <a href="https://genius.com/api-clients" target="_blank" rel="noopener">genius.com/api-clients</a> and sign in.</li>
+        <li>Click <b>New API Client</b> (any name; your GitHub URL works as the website).</li>
+        <li>Click <b>Generate Access Token</b> and paste it here.</li>
+      </ol>
+      <div class="row"><input id="geniusToken" type="password" autocomplete="off" spellcheck="false" placeholder="Genius access token" /><button data-test="genius">Test</button></div>
+      <div class="status" data-status="genius"></div>
+    </section>
+
+    <section class="card">
+      <h2>GETSONGBPM <span class="req opt">Optional</span></h2>
+      <p class="what">BPM, key, Camelot and time signature.</p>
+      <ol>
+        <li>Sign up at <a href="https://getsongbpm.com/api" target="_blank" rel="noopener">getsongbpm.com/api</a>. It asks for a site URL, so use your GitHub page.</li>
+        <li>Copy the API key from the email they send and paste it here.</li>
+      </ol>
+      <div class="row"><input id="bpmKey" type="password" autocomplete="off" spellcheck="false" placeholder="GetSongBPM API key" /><button data-test="bpm">Test</button></div>
+      <div class="status" data-status="bpm"></div>
+    </section>
+
+    <section class="card">
+      <h2>YOUTUBE <span class="req opt">Optional</span></h2>
+      <p class="what">Most-viewed covers with real view counts.</p>
+      <ol>
+        <li>Open <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">YouTube Data API v3</a> in Google Cloud (make a free project if asked) and click <b>Enable</b>.</li>
+        <li>Go to <b>APIs &amp; Services → Credentials → Create credentials → API key</b>.</li>
+        <li>Optional but smart: restrict the key to the YouTube Data API.</li>
+      </ol>
+      <div class="row"><input id="youtubeKey" type="password" autocomplete="off" spellcheck="false" placeholder="YouTube API key" /><button data-test="youtube">Test</button></div>
+      <div class="status" data-status="youtube"></div>
+      <label class="what" for="coverMin" style="display:flex;align-items:center;gap:10px;margin-top:6px">Only show covers with at least
+        <select id="coverMin">
+          <option value="50000">50K views</option>
+          <option value="100000">100K views</option>
+          <option value="250000">250K views</option>
+          <option value="500000">500K views</option>
+          <option value="1000000">1M views</option>
+        </select>
+      </label>
+    </section>
+
+    <div class="save"><button id="save">Save</button><span class="status" id="saved"></span></div>
+
+    <p class="note">MusicBrainz (deep credits) and Wikipedia (background) need no keys. Your keys stay in Chrome sync storage and are only sent to the service they belong to. Crate has no server and collects nothing.</p>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

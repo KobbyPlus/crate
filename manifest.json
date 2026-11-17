@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Crate",
+  "version": "0.4.0",
+  "description": "Dig into any song on YouTube: samples, interpolations, popular covers, BPM, key, meanings and full credits.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Crate: dig into this song (Alt+Shift+C)",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" }
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+C" },
+      "description": "Open or close Crate"
+    }
+  },
+  "options_page": "options.html",
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://*.genius.com/*",
+    "https://api.getsong.co/*",
+    "https://api.getsongbpm.com/*",
+    "https://musicbrainz.org/*",
+    "https://www.googleapis.com/*",
+    "https://en.wikipedia.org/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*", "https://music.youtube.com/*"],
+      "js": ["parse.js", "card.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["panel.css", "icons/*", "fonts/*"],
+      "matches": ["https://www.youtube.com/*", "https://music.youtube.com/*"]
+    }
+  ]
+}
