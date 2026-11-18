@@ -7,6 +7,8 @@ compatibility_date = "2025-06-01"
 # Optional: lock the server to your extension. Comma-separated Chrome extension IDs.
 # Leave empty to allow any Chrome extension (websites are always blocked).
 EXTENSION_IDS = ""
+# Kill switch for lyrics. Set to "false" and run `npx wrangler deploy` to turn lyrics off for everyone.
+LYRICS_ENABLED = "true"
 
 # Per-user rate limit: 120 requests per minute per IP.
 [[ratelimits]]

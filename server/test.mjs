@@ -12,6 +12,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (u.includes('api.genius.com/songs/1')) return new Response(JSON.stringify({ response: { song: { id: 1 } } }), { status: 200 });
   if (u.includes('api.genius.com/songs/2')) return new Response('{}', { status: 401 });
   if (u.includes('api.getsong.co')) return new Response(JSON.stringify({ search: [{ tempo: 84 }] }), { status: 200 });
+  if (u.includes('lrclib.net/api/search')) return new Response(JSON.stringify([{ trackName: 'Through the Wire', artistName: 'Kanye West', syncedLyrics: '[00:01.00] line' }]), { status: 200 });
   if (u.includes('youtube/v3/search')) return new Response(JSON.stringify({ error: { errors: [{ reason: 'quotaExceeded' }] } }), { status: 403 });
   return new Response('{}', { status: 404 });
 };
@@ -26,7 +27,7 @@ const get = async (path, origin = EXT, e = env) => {
 };
 
 let r = await get('/health');
-assert.equal(r.status, 200); assert.deepEqual(r.body, { ok: true, genius: true, bpm: true, youtube: true });
+assert.equal(r.status, 200); assert.deepEqual(r.body, { ok: true, genius: true, bpm: true, youtube: true, lyrics: true });
 
 r = await get('/genius/search?q=through%20the%20wire&per_page=10');
 assert.equal(r.status, 200); assert.equal(r.cors, EXT);
@@ -67,6 +68,16 @@ assert.equal(r.status, 400, 'video ids validated');
 
 r = await get('/bpm/search?type=both&lookup=x', EXT, { ...env, BPM_KEY: '' });
 assert.equal(r.status, 503); assert.equal(r.body.error, 'SERVICE_DISABLED');
+
+r = await get('/lyrics/search?track_name=Through%20the%20Wire&artist_name=Kanye%20West');
+assert.equal(r.status, 200); assert.equal(r.body[0].trackName, 'Through the Wire');
+assert.ok(calls.at(-1).u.startsWith('https://lrclib.net/api/search'));
+
+r = await get('/lyrics/search?track_name=Other&artist_name=Someone', EXT, { ...env, LYRICS_ENABLED: 'false' });
+assert.equal(r.status, 503); assert.equal(r.body.error, 'LYRICS_OFF', 'kill switch turns lyrics off');
+
+r = await get('/lyrics/search?q=anything');
+assert.equal(r.status, 400, 'only structured lyric lookups allowed');
 
 limited = true;
 r = await get('/genius/search?q=brand%20new%20query');

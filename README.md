@@ -5,10 +5,14 @@
 BPM and key data provided by [GetSongBPM](https://getsongbpm.com).
 
 - **Samples, Interpolations, Sampled In:** the song's family tree. Click any song to keep digging.
+- **Lyrics:** time-synced lyrics that follow the video. Tap a line to jump there.
 - **Covers:** only the most-viewed YouTube covers (100K+ views by default, adjustable).
 - **BPM, key, Camelot, time signature:** plus half-time and double-time BPM for producers and DJs.
 - **Meaning:** Wikipedia background, the Genius story, and line-by-line annotations.
 - **Credits:** producers, writers, engineers, mixers, instruments and studios. Every name is clickable.
+- **Listen on:** one tap to Spotify, Apple Music, YouTube Music, SoundCloud, Tidal or Deezer.
+- **Sample badge:** the Crate button shows how many samples a song has before you open it.
+- **Not on Genius? Still works:** Crate builds the page from MusicBrainz, Apple Music and Deezer instead.
 - **My Crate:** save songs you dig up, then copy the list.
 - **Share card:** export a story-sized (1080×1920) image for IG and TikTok.
 - **Shortcut:** `Alt+Shift+C` opens and closes the panel.
@@ -19,7 +23,7 @@ BPM and key data provided by [GetSongBPM](https://getsongbpm.com).
 2. Go to `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, pick `crate`.
 3. Open a music video and hit the **Crate** button, or press `Alt+Shift+C`.
 
-No API keys needed. Crate talks to its own small server (`server/`), which holds the keys and caches results for everyone. Developers can still add their own keys under **Settings → Use your own API keys**.
+No API keys or setup needed. Crate talks to its own small server (`server/`), which holds the keys and caches results for everyone.
 
 Updating from an older version: replace the folder, then hit the reload arrow on Crate's card in `chrome://extensions`.
 
@@ -32,6 +36,8 @@ Updating from an older version: replace the folder, then hit the reload arrow on
 | GetSongBPM | BPM, key, time signature (backlink shown in the footer) | Crate server |
 | YouTube Data API | Popular covers with view counts | Crate server |
 | Wikipedia | Background summary | Direct, no key |
+| Apple Music (iTunes catalog) and Deezer | Artwork, album, release date, genre, length for songs Genius lacks | Direct, no key |
+| LRCLIB | Lyrics, including time-synced lyrics | Crate server (with an off switch) |
 
 Notes:
 - YouTube's free quota is 10,000 units a day and one cover search uses 100, so covers load only when you open the Covers tab, and results are cached for a week.

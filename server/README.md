@@ -3,7 +3,7 @@
 A tiny Cloudflare Worker that holds Crate's API keys so users can install the extension and go, with no keys of their own.
 
 **What it does**
-- Adds your Genius, GetSongBPM and YouTube keys to requests. The keys never reach anyone's browser.
+- Adds your Genius, GetSongBPM and YouTube keys to requests, and fetches lyrics from LRCLIB. The keys never reach anyone's browser.
 - Only allows the exact endpoints Crate uses, with validated parameters.
 - Blocks websites from using it (only Chrome extensions are allowed, and you can lock it to Crate's ID).
 - Caches every answer at Cloudflare's edge, shared by all users (1 to 30 days depending on the data).
@@ -32,6 +32,15 @@ npx wrangler deploy
 3. Crate's settings page should say **Connected. No keys needed.**
 
 Any service without a key is simply hidden in Crate (for example, BPM stays hidden until you add `BPM_KEY`). Add a missing key later with the same `secret put` command. Keys update without redeploying.
+
+## Lyrics off switch
+
+Lyrics come from LRCLIB, a free community lyrics database. If a rights holder ever objects, turn lyrics off for every user instantly, no extension update needed:
+
+1. In `wrangler.toml`, set `LYRICS_ENABLED = "false"`.
+2. Run `npx wrangler deploy`.
+
+Crate then shows "Lyrics aren't available right now" with a link to the song's Genius page.
 
 ## Lock it to your extension (recommended once it's on the Chrome Web Store)
 

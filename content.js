@@ -72,7 +72,41 @@
     const channel = text('ytd-watch-metadata ytd-channel-name a') || text('#owner ytd-channel-name a');
     if (!raw) return null;
     const vid = new URLSearchParams(location.search).get('v') || '';
-    return { ...parseTitle(raw, channel), key: `${vid}|${raw}`, raw };
+    const box = musicBox(raw);
+    const parsed = box || parseTitle(raw, channel);
+    return { ...parsed, key: `${vid}|${raw}|${box ? box.title : ''}`, raw, vid };
+  }
+
+  // YouTube often names the exact song in the description ("Music" box, or "Provided to YouTube by" uploads).
+  // That beats guessing from a messy video title.
+  function musicBox(rawTitle) {
+    let title = '';
+    let artist = '';
+    for (const row of document.querySelectorAll('ytd-watch-metadata ytd-info-row-renderer')) {
+      const label = (row.querySelector('#title') || {}).textContent || '';
+      const value = ((row.querySelector('#default-metadata') || row.querySelector('#expandable-metadata') || {}).textContent || '').trim();
+      if (/^\s*song\s*$/i.test(label) && value) title = value;
+      if (/^\s*artists?\s*$/i.test(label) && value) artist = value;
+    }
+    if (title && artist) return { title, artist };
+
+    const attr = document.querySelector('ytd-watch-metadata yt-video-attribute-view-model');
+    if (attr) {
+      const t = (attr.querySelector('[class*="__title"]') || {}).textContent || '';
+      const a = (attr.querySelector('[class*="__subtitle"]') || {}).textContent || '';
+      // Only trust it if the song name also appears in the video title (avoids album/game cards).
+      if (t.trim() && a.trim() && rawTitle.toLowerCase().includes(t.trim().toLowerCase())) return { title: t.trim(), artist: a.trim() };
+    }
+
+    const desc = (document.querySelector('ytd-watch-metadata #description') || {}).textContent || '';
+    if (/Provided to YouTube by/i.test(desc)) {
+      const line = desc.split('\n').map((l) => l.trim()).find((l) => l.includes(' · '));
+      if (line) {
+        const [t, ...artists] = line.split(' · ');
+        if (t && artists[0]) return { title: t.trim(), artist: artists[0].trim() };
+      }
+    }
+    return null;
   }
 
   // ---------- shell ----------
@@ -82,7 +116,7 @@
   css.rel = 'stylesheet';
   css.href = ext('panel.css');
   const fab = h('button', { class: 'fab', title: 'Dig into this song (Alt+Shift+C)', onclick: () => toggle() },
-    h('img', { src: ext('icons/logo.svg'), alt: '' }), h('span', {}, 'Crate'));
+    h('img', { src: ext('icons/logo.svg'), alt: '' }), h('span', {}, 'Crate'), h('span', { class: 'badge-n' }));
   const panel = h('aside', { class: 'panel', 'aria-label': 'Crate' });
   shadow.append(css, fab, panel);
 
@@ -100,7 +134,15 @@
     error: '',
     saved: [],
     card: null,
+    lyrics: null,
+    pre: null, // prefetched song for the current video
+    playingId: null, // id of the song that matches the video playing now
+    sync: true,
+    offset: 0,
+    tabTouched: false,
+    prefs: { showBadge: true },
   };
+  chrome.storage.sync.get(['showBadge']).then((p) => { S.prefs.showBadge = p.showBadge !== false; });
 
   function mount() {
     if (!document.body.contains(host)) document.body.append(host);
@@ -110,13 +152,21 @@
     S.open = force ?? !S.open;
     panel.classList.toggle('open', S.open);
     fab.classList.toggle('hidden', S.open);
-    if (S.open && !S.song && S.view !== 'loading' && S.view !== 'crate') lookupCurrent();
+    if (S.open && !S.song && S.view !== 'loading' && S.view !== 'crate') {
+      if (S.pre && S.pre.key === lastKey) {
+        S.current = readNowPlaying();
+        S.candidates = S.pre.candidates;
+        S.playingId = S.pre.song.id;
+        return showSong(S.pre.song);
+      }
+      lookupCurrent();
+    }
     render();
   }
 
   // ---------- navigation ----------
   function snapshot() {
-    return { view: S.view, song: S.song, extra: S.extra, covers: S.covers, artist: S.artist, tab: S.tab };
+    return { view: S.view, song: S.song, extra: S.extra, covers: S.covers, lyrics: S.lyrics, artist: S.artist, tab: S.tab };
   }
   function push() {
     if (['song', 'artist', 'crate'].includes(S.view)) S.stack.push(snapshot());
@@ -147,6 +197,8 @@
       S.view = 'pick';
       return render();
     }
+    S.playingId = res.song.id;
+    setBadge(res.song);
     showSong(res.song);
   }
 
@@ -154,8 +206,10 @@
     S.song = song;
     S.extra = null;
     S.covers = null;
+    S.lyrics = null;
     S.view = 'song';
     S.tab = pickTab(song);
+    S.tabTouched = false;
     render({ top: true });
     enrich(song.id);
   }
@@ -164,6 +218,10 @@
     const res = await send({ type: 'enrich', id });
     if (!S.song || S.song.id !== id) return;
     S.extra = res.error ? { stats: { status: 'error', error: res.error }, credits: S.song.credits, wiki: null } : res;
+    if (res.groups) {
+      S.song = { ...S.song, groups: res.groups };
+      if (!S.tabTouched) S.tab = pickTab(S.song);
+    }
     if (S.view === 'song') render();
   }
 
@@ -185,6 +243,19 @@
     const res = await send({ type: 'covers', id });
     if (!S.song || S.song.id !== id) return;
     S.covers = res.error ? { status: 'error', error: res.error, fallback: S.song.groups.covered_by } : res;
+    render();
+  }
+
+  async function loadLyrics() {
+    if (!S.song || S.lyrics) return;
+    const id = S.song.id;
+    S.lyrics = { status: 'loading' };
+    render();
+    const video = document.querySelector('video');
+    const duration = id === S.playingId && video && isFinite(video.duration) ? Math.round(video.duration) : null;
+    const res = await send({ type: 'lyrics', id, duration });
+    if (!S.song || S.song.id !== id) return;
+    S.lyrics = res.error ? { status: 'error', error: res.error } : res;
     render();
   }
 
@@ -327,8 +398,9 @@
     ['samples', 'Samples'],
     ['interpolations', 'Interpolations'],
     ['sampled_in', 'Sampled In'],
-    ['covers', 'Covers'],
+    ['lyrics', 'Lyrics'],
     ['meaning', 'Meaning'],
+    ['covers', 'Covers'],
     ['credits', 'Credits'],
   ];
 
@@ -367,12 +439,6 @@
         if (!c || c.status === 'loading') return h('div', {}, coverOf, h('div', { class: 'loading small' }, h('div', { class: 'spin' }), 'Finding popular covers…'));
         const fallback = (c.fallback || []).length ? [label('Covers listed on Genius'), list(c.fallback)] : null;
         if (c.status === 'off') return h('div', {}, coverOf, fallback || empty('No covers listed for this song yet.', song));
-        if (c.status === 'nokey') {
-          return h('div', {}, coverOf,
-            h('div', { class: 'notice' }, 'Add a free YouTube API key in settings to see the most-viewed covers.',
-              h('button', { class: 'link', onclick: () => send({ type: 'openOptions' }) }, 'Open settings')),
-            fallback);
-        }
         if (c.status === 'error') {
           const msg = c.error === 'YT_QUOTA' ? 'YouTube’s daily limit is used up. Covers come back tomorrow.' :
             c.error === 'YT_BAD_KEY' ? 'YouTube rejected your API key. Check it in settings.' : `Couldn’t load covers (${c.error}).`;
@@ -390,6 +456,9 @@
             : h('div', { class: 'empty' }, h('p', {}, 'No covers have crossed that view count yet.')),
           fallback);
       }
+
+      case 'lyrics':
+        return lyricsBody(song);
 
       case 'meaning': {
         const wiki = S.extra && S.extra.wiki;
@@ -409,7 +478,13 @@
 
       case 'credits': {
         const credits = S.extra ? S.extra.credits : song.credits;
-        const meta = [song.album ? ['Album', song.album] : null, song.release ? ['Released', song.release] : null].filter(Boolean);
+        const cat = S.extra && S.extra.catalog;
+        const meta = [
+          song.album || (cat && cat.album) ? ['Album', song.album || cat.album] : null,
+          song.release || (cat && cat.release) ? ['Released', song.release || cat.release] : null,
+          cat && cat.genre ? ['Genre', cat.genre] : null,
+          cat && cat.durationSec ? ['Length', `${Math.floor(cat.durationSec / 60)}:${String(cat.durationSec % 60).padStart(2, '0')}`] : null,
+        ].filter(Boolean);
         return h('div', {},
           meta.length ? h('div', { class: 'meta' }, meta.map(([k, v]) => h('div', { class: 'meta-cell' }, h('span', { class: 'meta-k' }, k), h('span', { class: 'meta-v' }, v)))) : null,
           credits.length
@@ -421,15 +496,99 @@
     }
   }
 
+  // ---------- lyrics ----------
+  function lyricsBody(song) {
+    const L = S.lyrics;
+    const geniusLink = song.lite ? null : ext_link(song.url, 'Read them on Genius →', 'small-link');
+    if (!L || L.status === 'loading') return h('div', { class: 'loading small' }, h('div', { class: 'spin' }), 'Finding lyrics…');
+    if (L.status === 'off') return h('div', { class: 'empty' }, h('p', {}, 'Lyrics aren’t available in Crate right now.'), geniusLink);
+    if (L.status === 'error') return h('div', { class: 'empty' }, h('p', {}, `Couldn’t load lyrics (${L.error}).`), geniusLink);
+    const ly = L.lyrics;
+    if (!ly) {
+      return h('div', { class: 'empty' }, h('p', {}, 'No lyrics found for this song yet.'), geniusLink,
+        h('div', {}, ext_link('https://lrclib.net', 'Add them on LRCLIB →', 'small-link')));
+    }
+    if (ly.instrumental) return h('div', { class: 'empty' }, h('p', {}, 'Instrumental. No lyrics.'));
+
+    const canSync = ly.synced.length && song.id === S.playingId && document.querySelector('video');
+    const toolbar = canSync
+      ? h('div', { class: 'lyr-bar' },
+          h('button', { class: 'pill' + (S.sync ? ' on' : ''), onclick: () => { S.sync = !S.sync; render(); } }, S.sync ? '● Synced to video' : '○ Sync off'),
+          S.sync ? h('div', { class: 'nudge' },
+            h('button', { class: 'pill ghost', title: 'Lyrics are late', onclick: () => { S.offset += 0.5; render(); } }, '−'),
+            h('span', { class: 'muted' }, `${S.offset > 0 ? '+' : ''}${S.offset.toFixed(1)}s`),
+            h('button', { class: 'pill ghost', title: 'Lyrics are early', onclick: () => { S.offset -= 0.5; render(); } }, '+')) : null)
+      : null;
+
+    const lines = ly.synced.length
+      ? h('div', { class: 'lyrics synced' }, ly.synced.map((l) =>
+          h('button', {
+            class: 'lyr-line', 'data-t': String(l.t), title: canSync ? 'Jump here' : null,
+            onclick: canSync ? () => { const v = document.querySelector('video'); if (v) v.currentTime = Math.max(0, l.t - S.offset); } : null,
+          }, l.text || '♪')))
+      : h('div', { class: 'lyrics' }, ly.plain.split(/\n/).map((t) => h('p', { class: 'lyr-plain' }, t || ' ')));
+
+    return h('div', {}, toolbar, lines, h('p', { class: 'muted lyr-credit' }, 'Lyrics from ', ext_link('https://lrclib.net', 'LRCLIB'), ', a free community database.'));
+  }
+
+  // Highlight the current line while the video plays.
+  let lastLine = -1;
+  let userScrollAt = 0;
+  panel.addEventListener('wheel', () => { userScrollAt = Date.now(); }, { passive: true });
+  setInterval(() => {
+    if (!S.open || S.view !== 'song' || S.tab !== 'lyrics' || !S.sync || !S.song || S.song.id !== S.playingId) return;
+    const v = document.querySelector('video');
+    const els = panel.querySelectorAll('.lyr-line');
+    if (!v || !els.length) return;
+    const now = v.currentTime + S.offset;
+    let idx = -1;
+    els.forEach((el, i) => { if (Number(el.dataset.t) <= now) idx = i; });
+    if (idx === lastLine && els[idx] && els[idx].classList.contains('on')) return;
+    lastLine = idx;
+    els.forEach((el, i) => { el.classList.toggle('on', i === idx); el.classList.toggle('past', i < idx); });
+    if (idx >= 0 && Date.now() - userScrollAt > 4000) {
+      const body = panel.querySelector('.body');
+      const el = els[idx];
+      if (body && el) body.scrollTo({ top: el.offsetTop - body.clientHeight * 0.4, behavior: 'smooth' });
+    }
+  }, 250);
+
+  // ---------- listen on ----------
+  function listenRow(song) {
+    const q = encodeURIComponent(`${song.artist} ${song.title}`);
+    const cat = S.extra && S.extra.catalog;
+    const links = [
+      ['Spotify', `https://open.spotify.com/search/${q}`],
+      ['Apple Music', (cat && cat.apple) || `https://music.apple.com/us/search?term=${q}`],
+      ['YouTube Music', `https://music.youtube.com/search?q=${q}`],
+      ['SoundCloud', `https://soundcloud.com/search?q=${q}`],
+      ['Tidal', `https://listen.tidal.com/search?q=${q}`],
+      ['Deezer', (cat && cat.deezer) || `https://www.deezer.com/search/${q}`],
+    ];
+    return h('div', { class: 'listen' }, h('span', { class: 'listen-k' }, 'Listen on'),
+      h('div', { class: 'listen-links' }, links.map(([name, href]) => ext_link(href, name, 'listen-a'))));
+  }
+
+  // ---------- sample badge on the Crate button ----------
+  function setBadge(song) {
+    const el = fab.querySelector('.badge-n');
+    const n = song ? song.groups.samples.length + song.groups.interp_from.length : 0;
+    el.textContent = n && S.prefs.showBadge ? `${n} sample${n === 1 ? '' : 's'}` : '';
+    fab.classList.toggle('has-badge', Boolean(el.textContent));
+  }
+
+  async function prefetch(now, key) {
+    const res = await send({ type: 'lookup', query: { artist: now.artist, title: now.title } });
+    if (key !== lastKey || res.error || !res.song) return;
+    S.pre = { key, song: res.song, candidates: res.candidates || [] };
+    setBadge(res.song);
+  }
+
   // ---------- stats strip ----------
   function statsStrip() {
     const st = S.extra && S.extra.stats;
     if (!st) return h('div', { class: 'stats' }, ['BPM', 'KEY', 'CAMELOT', 'TIME'].map((k) => h('div', { class: 'stat skeleton' }, h('span', { class: 'stat-k' }, k), h('span', { class: 'stat-v' }, '·'))));
     if (st.status === 'off') return null;
-    if (st.status === 'nokey') {
-      return h('div', { class: 'notice slim' }, 'Add a free GetSongBPM key to see BPM and key.',
-        h('button', { class: 'link', onclick: () => send({ type: 'openOptions' }) }, 'Settings'));
-    }
     if (st.status !== 'ok') {
       return h('div', { class: 'notice slim' }, st.status === 'none' ? 'No BPM or key on file for this one yet.' : 'Couldn’t reach GetSongBPM right now.');
     }
@@ -443,8 +602,7 @@
 
   // ---------- views ----------
   const ERRORS = {
-    NO_TOKEN: 'Add your Genius access token to get started.',
-    BAD_TOKEN: 'Your Genius token was rejected. Paste a fresh one in settings.',
+    NO_SERVER: 'This build of Crate isn’t connected to its server yet.',
     RATE_LIMIT: 'Genius is rate limiting requests. Give it a minute.',
     EXTENSION_RELOADED: 'Crate was updated. Refresh this page.',
     SERVER_DOWN: 'Crate’s server can’t be reached right now. Try again in a minute.',
@@ -478,20 +636,24 @@
         h('div', { class: 'hero-text' },
           h('div', { class: 'title' }, song.title),
           h('button', { class: 'artist-link', onclick: () => openArtist({ name: song.artist, geniusId: song.artistId }) }, song.artist),
+          song.lite ? h('div', { class: 'lite-note' }, 'Not on Genius yet · built from MusicBrainz and Apple Music') : null,
           h('div', { class: 'actions' },
             h('button', { class: 'pill' + (saved ? ' on' : ''), onclick: () => toggleSave(song) }, saved ? '✓ In crate' : '+ Crate'),
+            h('button', { class: 'pill' + (S.tab === 'lyrics' ? ' on-soft' : ''), onclick: () => { S.tab = 'lyrics'; S.tabTouched = true; loadLyrics(); render(); } }, '♪ Lyrics'),
             h('button', { class: 'pill', onclick: makeCard }, '↗ Share'),
             !S.stack.length ? h('button', { class: 'pill ghost', onclick: () => { S.view = 'pick'; render(); } }, 'Wrong song?') : null))),
       statsStrip() || '',
+      listenRow(song),
       h('nav', { class: 'tabs' }, TABS.map(([key, name]) => {
         const n = tabCount(song, key);
         return h('button', {
           class: 'tab' + (S.tab === key ? ' active' : ''),
-          onclick: () => { S.tab = key; if (key === 'covers') loadCovers(); render(); },
+          onclick: () => { S.tab = key; S.tabTouched = true; if (key === 'covers') loadCovers(); if (key === 'lyrics') loadLyrics(); render(); },
         }, name, n ? h('span', { class: 'count' }, n) : null);
       })),
       h('div', { class: 'content' }, tabBody(song)));
     if (S.tab === 'covers' && !S.covers) queueMicrotask(loadCovers);
+    if (S.tab === 'lyrics' && !S.lyrics) queueMicrotask(loadLyrics);
   }
 
   function renderArtist(body) {
@@ -587,7 +749,7 @@
     } else if (S.view === 'error') {
       body.append(h('div', { class: 'empty' },
         h('p', {}, ERRORS[S.error] || `Something went wrong (${S.error}).`),
-        ['NO_TOKEN', 'BAD_TOKEN'].includes(S.error)
+        S.error === 'NO_SERVER'
           ? h('button', { class: 'cta', onclick: () => send({ type: 'openOptions' }) }, 'Open settings')
           : h('button', { class: 'cta', onclick: () => lookupCurrent() }, 'Try again')));
     } else if (S.view === 'empty') {
@@ -621,8 +783,14 @@
     const key = now ? now.key : null;
     if (key !== lastKey) {
       lastKey = key;
+      S.pre = null;
+      S.playingId = null;
+      setBadge(null);
       if (S.open && S.view !== 'crate' && !S.card) lookupCurrent();
-      else S.song = null;
+      else {
+        S.song = null;
+        if (now && now.title) prefetch(now, key);
+      }
     }
   }, 1500);
 

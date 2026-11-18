@@ -70,51 +70,17 @@
           <option value="1000000">1M views</option>
         </select>
       </label>
+      <label class="what" for="showBadge" style="display:flex;align-items:center;gap:10px;margin:12px 0 0;cursor:pointer">
+        <input type="checkbox" id="showBadge" style="flex:none;width:18px;height:18px;accent-color:#BB182E" />
+        Show the sample count on the Crate button
+      </label>
     </section>
 
-    <details class="adv" id="adv">
-      <summary>Use your own API keys (optional)</summary>
-      <p class="what">Not needed when the Crate server is connected. Your own keys take priority if you add them, which is handy for development or if the server is down.</p>
-
-    <section class="card">
-      <h2>GENIUS <span class="req opt">Optional</span></h2>
-      <p class="what">Samples, interpolations, meanings, base credits.</p>
-      <ol>
-        <li>Go to <a href="https://genius.com/api-clients" target="_blank" rel="noopener">genius.com/api-clients</a> and sign in.</li>
-        <li>Click <b>New API Client</b> (any name; your GitHub URL works as the website).</li>
-        <li>Click <b>Generate Access Token</b> and paste it here.</li>
-      </ol>
-      <div class="row"><input id="geniusToken" type="password" autocomplete="off" spellcheck="false" placeholder="Genius access token" /><button data-test="genius">Test</button></div>
-      <div class="status" data-status="genius"></div>
-    </section>
-
-    <section class="card">
-      <h2>GETSONGBPM <span class="req opt">Optional</span></h2>
-      <p class="what">BPM, key, Camelot and time signature.</p>
-      <ol>
-        <li>Sign up at <a href="https://getsongbpm.com/api" target="_blank" rel="noopener">getsongbpm.com/api</a>. It asks for a site URL, so use your GitHub page.</li>
-        <li>Copy the API key from the email they send and paste it here.</li>
-      </ol>
-      <div class="row"><input id="bpmKey" type="password" autocomplete="off" spellcheck="false" placeholder="GetSongBPM API key" /><button data-test="bpm">Test</button></div>
-      <div class="status" data-status="bpm"></div>
-    </section>
-
-    <section class="card">
-      <h2>YOUTUBE <span class="req opt">Optional</span></h2>
-      <p class="what">Most-viewed covers with real view counts.</p>
-      <ol>
-        <li>Open <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">YouTube Data API v3</a> in Google Cloud (make a free project if asked) and click <b>Enable</b>.</li>
-        <li>Go to <b>APIs &amp; Services → Credentials → Create credentials → API key</b>.</li>
-        <li>Optional but smart: restrict the key to the YouTube Data API.</li>
-      </ol>
-      <div class="row"><input id="youtubeKey" type="password" autocomplete="off" spellcheck="false" placeholder="YouTube API key" /><button data-test="youtube">Test</button></div>
-      <div class="status" data-status="youtube"></div>
-    </section>
-    </details>
+    
 
     <div class="save"><button id="save">Save</button><span class="status" id="saved"></span></div>
 
-    <p class="note">MusicBrainz and Wikipedia are free and need no keys. If you add your own keys, they stay in Chrome sync storage and are only sent to the service they belong to. Crate collects no personal data.</p>
+    <p class="note">Data from Genius, MusicBrainz, GetSongBPM, YouTube, Wikipedia, Apple Music, Deezer and LRCLIB. Crate collects no personal data.</p>
   </main>
   <script src="options.js"></script>
 </body>

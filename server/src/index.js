@@ -50,6 +50,13 @@ const ROUTES = [
     upstream: (m, p, env) => bpm(p, env),
   },
   {
+    match: /^\/lyrics\/search$/,
+    params: { track_name: SHORT(200), artist_name: SHORT(200) },
+    required: ['track_name', 'artist_name'],
+    ttl: 14 * DAY,
+    upstream: (m, p, env) => lyrics(p, env),
+  },
+  {
     match: /^\/yt\/search$/,
     params: { q: SHORT(200) },
     required: ['q'],
@@ -78,6 +85,13 @@ function bpm(params, env) {
   return fetch(url, { headers: { 'X-API-KEY': env.BPM_KEY } });
 }
 
+function lyrics(params) {
+  const url = new URL('https://lrclib.net/api/search');
+  setParams(url, params);
+  // LRCLIB asks clients to identify themselves.
+  return fetch(url, { headers: { 'User-Agent': 'Crate/1.0 (https://github.com/KobbyPlus/crate)' } });
+}
+
 function youtube(path, params, env) {
   const url = new URL('https://www.googleapis.com/youtube/v3' + path);
   setParams(url, { ...params, key: env.YOUTUBE_KEY });
@@ -94,6 +108,10 @@ function json(body, status = 200, extra = {}) {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', ...extra },
   });
+}
+
+function lyricsOn(env) {
+  return String(env.LYRICS_ENABLED ?? 'true').toLowerCase() !== 'false';
 }
 
 function originAllowed(origin, env) {
@@ -135,7 +153,7 @@ export default {
     }
     if (request.method !== 'GET') return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
     if (url.pathname === '/health') {
-      return cors(json({ ok: true, genius: !!env.GENIUS_TOKEN, bpm: !!env.BPM_KEY, youtube: !!env.YOUTUBE_KEY }), origin);
+      return cors(json({ ok: true, genius: !!env.GENIUS_TOKEN, bpm: !!env.BPM_KEY, youtube: !!env.YOUTUBE_KEY, lyrics: lyricsOn(env) }), origin);
     }
     if (!originAllowed(origin, env)) return json({ error: 'FORBIDDEN_ORIGIN' }, 403);
 
@@ -161,8 +179,13 @@ export default {
     }
 
     const service = url.pathname.split('/')[1];
-    const keyName = { genius: 'GENIUS_TOKEN', bpm: 'BPM_KEY', yt: 'YOUTUBE_KEY' }[service];
-    if (!env[keyName]) return cors(json({ error: 'SERVICE_DISABLED', service }, 503), origin);
+    if (service === 'lyrics') {
+      // Kill switch: set LYRICS_ENABLED to "false" and redeploy to turn lyrics off for everyone.
+      if (!lyricsOn(env)) return cors(json({ error: 'LYRICS_OFF' }, 503), origin);
+    } else {
+      const keyName = { genius: 'GENIUS_TOKEN', bpm: 'BPM_KEY', yt: 'YOUTUBE_KEY' }[service];
+      if (!env[keyName]) return cors(json({ error: 'SERVICE_DISABLED', service }, 503), origin);
+    }
 
     // Shared cache: one person's lookup speeds up everyone after them.
     const cache = caches.default;

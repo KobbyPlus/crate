@@ -230,3 +230,42 @@ a.chip.place:hover { color: var(--text); }
 .sheet-actions { display: flex; gap: 8px; justify-content: center; }
 
 .label, .meta-k, .stat-k, .kicker { text-transform: uppercase; }
+
+/* ---------- sample badge on the button ---------- */
+.badge-n { display: none; }
+.fab.has-badge .badge-n {
+  display: inline-block; margin-left: 2px; padding: 2px 8px; border-radius: 999px;
+  background: var(--red); color: #fff; font-size: 11px; font-weight: 700;
+}
+
+/* ---------- lite songs ---------- */
+.lite-note { margin-top: 4px; font-size: 11px; color: var(--dim); }
+
+/* ---------- listen on ---------- */
+.listen { display: flex; align-items: center; gap: 10px; margin: -4px 0 16px; overflow: hidden; }
+.listen-k { flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.listen-links { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.listen-links::-webkit-scrollbar { display: none; }
+.listen-a {
+  flex: none; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line);
+  font-size: 11.5px; font-weight: 600; color: var(--mute); white-space: nowrap;
+}
+.listen-a:hover { color: var(--text); border-color: var(--purple-2); background: rgba(60, 19, 97, .4); }
+
+/* ---------- lyrics ---------- */
+.pill.on-soft { border-color: var(--purple-2); background: rgba(60, 19, 97, .7); }
+.lyr-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.nudge { display: flex; align-items: center; gap: 6px; }
+.nudge .pill { width: 28px; padding: 3px 0; text-align: center; }
+.lyrics { display: flex; flex-direction: column; gap: 2px; }
+.lyr-line {
+  display: block; width: 100%; text-align: left; background: none; border: 0; padding: 5px 8px; border-radius: 8px;
+  font-size: 16px; font-weight: 650; line-height: 1.35; letter-spacing: -.01em; color: rgba(242, 236, 255, .5);
+  transition: color .25s ease, background .25s ease, transform .25s ease;
+}
+.lyr-line:hover { background: rgba(60, 19, 97, .35); color: rgba(242, 236, 255, .8); }
+.lyr-line.past { color: rgba(242, 236, 255, .32); }
+.lyr-line.on { color: var(--text); transform: translateX(4px); box-shadow: inset 3px 0 0 var(--red); }
+.lyr-plain { margin: 0; font-size: 15px; font-weight: 550; line-height: 1.6; color: #DCD3F2; min-height: 1em; }
+.lyr-credit { margin-top: 16px; }
+.lyr-credit a { color: var(--mute); text-decoration: underline; }

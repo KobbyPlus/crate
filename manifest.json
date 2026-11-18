@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Crate",
-  "version": "0.5.0",
-  "description": "Dig into any song on YouTube: samples, interpolations, popular covers, BPM, key, meanings and full credits.",
+  "version": "0.6.0",
+  "description": "Dig into any song on YouTube: samples, interpolations, lyrics, popular covers, BPM, key, meanings and full credits.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -33,13 +33,14 @@
     "storage"
   ],
   "host_permissions": [
-    "https://*.genius.com/*",
-    "https://api.getsong.co/*",
-    "https://api.getsongbpm.com/*",
+    "https://*.workers.dev/*",
     "https://musicbrainz.org/*",
-    "https://www.googleapis.com/*",
     "https://en.wikipedia.org/*",
-    "https://*.workers.dev/*"
+    "https://itunes.apple.com/*",
+    "https://api.deezer.com/*",
+    "https://*.genius.com/*",
+    "https://*.mzstatic.com/*",
+    "https://*.dzcdn.net/*"
   ],
   "content_scripts": [
     {
